@@ -24,7 +24,4 @@ class Proxy(Flask):
         return ready_resp
 
 if __name__ == '__main__':
-    Proxy().run(
-        host=sys.argv[1] if len(sys.argv) == 3 else 'localhost',
-        port=sys.argv[-1] if len(sys.argv) >= 2 and sys.argv[-1].isdigit() else 8080
-    )
+    Proxy().run('0.0.0.0',80)
