@@ -3,6 +3,7 @@
 #2025.1.7
 
 TARGET = 'http://localhost:5000'
+BLACKLIST_PATHS = ('/.git','/cgi-bin','/443')
 
 from flask import Flask,request,make_response,abort
 import httpx,sys
@@ -13,7 +14,8 @@ class Proxy(Flask):
     def __init__(self):
         super().__init__(__name__)
         self.before_request(self._before_request)
-    def _before_request(self):
+    @staticmethod
+    def _before_request():
         # 过滤黑名单ip
         if request.remote_addr in ip_blacklist:
             abort(403,'检测到你有违规操作，已禁止访问。如有疑问，请咨询Bail。')
@@ -23,6 +25,9 @@ class Proxy(Flask):
                 b'-' * 5 + request.remote_addr.encode() + b' ' + request.method.encode() + b' ' + request.full_path.encode() + b'\n')
             requests_log_file.write(str(request.headers).encode() + b'\n\n')
             requests_log_file.write(request.get_data() + b'\n')
+        # 过滤请求
+        if any(request.path.startswith(i) for i in BLACKLIST_PATHS):
+            Proxy._ban()
         # 处理请求
         req_headers = request.headers.to_wsgi_list()
         req_headers.append(('X-Real-IP',request.remote_addr))
@@ -33,6 +38,10 @@ class Proxy(Flask):
         if resp.status_code == 601:
             ip_blacklist.append(request.remote_addr)
         return ready_resp
+    @staticmethod
+    def _ban():
+        ip_blacklist.append(request.remote_addr)
+        abort(403,'检测到你有违规操作，已禁止访问。如有疑问，请咨询Bail。')
 
 if __name__ == '__main__':
     Proxy().run('0.0.0.0',80)
