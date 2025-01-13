@@ -3,31 +3,24 @@
 #2025.1.7
 
 TARGET = 'http://localhost:5000'
-BLACKLIST_PATHS = ('/.git','/cgi-bin','/443')
 
-from flask import Flask,request,make_response,abort
-import httpx,sys
+from flask import Flask,request,make_response,abort,Response
+import httpx,time
 
-ip_blacklist = []   # ip黑名单，用于过滤频繁访问
+ip_blacklist = set()   # ip黑名单，用于过滤频繁访问
 
 class Proxy(Flask):
     def __init__(self):
         super().__init__(__name__)
         self.before_request(self._before_request)
+        self.after_request(self._after_request)
     @staticmethod
     def _before_request():
         # 过滤黑名单ip
         if request.remote_addr in ip_blacklist:
-            abort(403,'检测到你有违规操作，已禁止访问。如有疑问，请咨询Bail。')
+            Proxy.ban()
         # 打印请求
-        with open('traffic.log', 'ab') as requests_log_file:
-            requests_log_file.write(
-                b'-' * 5 + request.remote_addr.encode() + b' ' + request.method.encode() + b' ' + request.full_path.encode() + b'\n')
-            requests_log_file.write(str(request.headers).encode() + b'\n\n')
-            requests_log_file.write(request.get_data() + b'\n')
-        # 过滤请求
-        if any(request.path.startswith(i) for i in BLACKLIST_PATHS):
-            Proxy._ban()
+        Proxy.log()
         # 处理请求
         req_headers = request.headers.to_wsgi_list()
         req_headers.append(('X-Real-IP',request.remote_addr))
@@ -36,12 +29,29 @@ class Proxy(Flask):
         ready_resp.headers = dict(resp.headers)
         # 处理来自主服务器的拉黑请求
         if resp.status_code == 601:
-            ip_blacklist.append(request.remote_addr)
+            ip_blacklist.add(request.remote_addr)
         return ready_resp
     @staticmethod
-    def _ban():
-        ip_blacklist.append(request.remote_addr)
-        abort(403,'检测到你有违规操作，已禁止访问。如有疑问，请咨询Bail。')
+    def _after_request(res:Response):
+        global ip_blacklist
+        if res.status_code == 404:
+            Proxy.ban()
+        return res
+    @staticmethod
+    def ban():
+        print('已封禁↓')
+        ip_blacklist.add(request.remote_addr)
+        abort(make_response('检测到你有违规操作，已禁止访问。如有疑问，请咨询Bail。'))
+    @staticmethod
+    def log():
+        '''打印请求'''
+        with open('traffic.log', 'ab') as requests_log_file:
+            nowtime = time.strftime('%Y%m%dT%H%M%S')
+            requests_log_file.write(b'-'*5 + b' '.join(i.encode() for i in (nowtime,request.remote_addr))+b'\n')
+            requests_log_file.write(request.method.encode() + b' ' + request.full_path.encode() + b'\n')
+            requests_log_file.write(str(request.headers).encode() + b'\n\n')
+            requests_log_file.write(request.get_data() + b'\n')
+
 
 if __name__ == '__main__':
     Proxy().run('0.0.0.0',80)
