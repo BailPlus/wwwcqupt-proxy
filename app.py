@@ -18,7 +18,7 @@ class Proxy(Flask):
     def _before_request():
         # 过滤黑名单ip
         if request.remote_addr in ip_blacklist:
-            Proxy.ban()
+            return Proxy.ban()
         # 打印请求
         Proxy.log()
         # 处理请求
@@ -35,13 +35,13 @@ class Proxy(Flask):
     def _after_request(res:Response):
         global ip_blacklist
         if res.status_code == 404:
-            Proxy.ban()
+            return Proxy.ban()
         return res
     @staticmethod
     def ban():
         print('已封禁↓')
         ip_blacklist.add(request.remote_addr)
-        abort(make_response('检测到你有违规操作，已禁止访问。如有疑问，请咨询Bail。'))
+        return make_response('检测到你有违规操作，已禁止访问。如有疑问，请咨询Bail。')
     @staticmethod
     def log():
         '''打印请求'''
