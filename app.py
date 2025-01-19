@@ -33,7 +33,8 @@ class Proxy(Flask):
         except (httpx.ConnectError,httpx.ConnectTimeout):
             abort(502,'服务器掉线，请联系Bail，谢谢')
         ready_resp = make_response(resp.content,f'{resp.status_code} {resp.reason_phrase}')
-        ready_resp.headers = dict(resp.headers)
+        ready_resp.headers.update(resp.headers.items())
+        ready_resp.headers.add_header('Strict-Transport-Security', 'max-age=86400')
         # 处理来自主服务器的拉黑请求
         if resp.status_code == 601:
             ip_blacklist.add(request.remote_addr)
