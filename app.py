@@ -30,7 +30,7 @@ class Proxy(Flask):
         except httpx.LocalProtocolError:
             print('浏览器不正确↓')
             abort(403,'请使用正确的浏览器访问，谢谢')
-        except (httpx.ConnectError,httpx.ConnectTimeout):
+        except (httpx.ConnectError,httpx.ConnectTimeout,httpx.ReadTimeout):
             abort(502,'服务器掉线，请联系Bail，谢谢')
         ready_resp = make_response(resp.content,f'{resp.status_code} {resp.reason_phrase}')
         ready_resp.headers.update(resp.headers.items())
