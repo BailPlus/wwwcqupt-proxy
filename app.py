@@ -5,11 +5,13 @@
 TARGET = 'http://localhost:5000'
 TRAFFIC_LOG_FILE = 'traffic.log'
 SSL_CONTEXT = ('fullchain.pem','privkey.pem')
+FREQUENCY_RESTRICT = {'222.177.140.114':(300,500),'*':(60,50)}    # 请求频率限制具体数值，[0]秒内最多[1]个请求
 
 from flask import Flask,request,make_response,Response,abort
 import httpx,time,os,random
 
-ip_blacklist = set()   # ip黑名单，用于过滤频繁访问
+ip_blacklist = set()   # ip黑名单
+ip_frequency:dict[str:[int,int]] = {}   # 访问频率统计，{ip:[最近访问时间,访问次数]}
 
 class Proxy(Flask):
     def __init__(self):
@@ -20,6 +22,9 @@ class Proxy(Flask):
         # 过滤黑名单ip
         if request.remote_addr in ip_blacklist:
             return Proxy.ban()
+        if not self.check_frequency():
+            print('请求频率过高↓')
+            return Proxy.ban('请求频率过高，已禁止访问。')
         # 打印请求
         self.log()
         # 处理请求
@@ -42,12 +47,13 @@ class Proxy(Flask):
         return ready_resp
     @staticmethod
     def _after_request(res:Response):
-        global ip_blacklist
         if res.status_code == 404:
             return Proxy.ban()
         return res
     @staticmethod
-    def ban(msg:str='检测到你有违规操作，已禁止访问。如有疑问，请咨询Bail。'+os.urandom(random.randint(1,10))):
+    def ban(msg:str|None=None) -> Response:
+        if msg is None:
+            msg = '检测到你有违规操作，已禁止访问。如有疑问，请咨询Bail。' + os.urandom(random.randint(1,10)).hex()
         print('已封禁↓')
         ip_blacklist.add(request.remote_addr)
         return make_response(msg)
@@ -59,7 +65,21 @@ class Proxy(Flask):
             requests_log_file.write(request.method.encode() + b' ' + request.full_path.encode() + b'\n')
             requests_log_file.write(str(request.headers).encode())
             requests_log_file.write(request.get_data() + b'\n')
-
+    @staticmethod
+    def check_frequency()->bool:
+        '''检查请求频率
+返回值：可继续访问性(bool)'''
+        global ip_frequency
+        restrict = FREQUENCY_RESTRICT.get(request.remote_addr,FREQUENCY_RESTRICT['*'])
+        now_frequency = ip_frequency.get(request.remote_addr,[time.time(),0])
+        if time.time() - now_frequency[0] < restrict[0]:
+            now_frequency[1] += 1
+            if now_frequency[1] > restrict[1]:
+                return False
+        else:
+            now_frequency = [time.time(),1]
+        ip_frequency[request.remote_addr] = now_frequency
+        return True
 
 if __name__ == '__main__':
     Proxy().run('0.0.0.0',443,ssl_context=SSL_CONTEXT)
