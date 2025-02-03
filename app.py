@@ -7,7 +7,7 @@ TRAFFIC_LOG_FILE = 'traffic.log'
 SSL_CONTEXT = ('fullchain.pem','privkey.pem')
 
 from flask import Flask,request,make_response,Response,abort
-import httpx,time
+import httpx,time,os,random
 
 ip_blacklist = set()   # ip黑名单，用于过滤频繁访问
 
@@ -47,7 +47,7 @@ class Proxy(Flask):
             return Proxy.ban()
         return res
     @staticmethod
-    def ban(msg:str='检测到你有违规操作，已禁止访问。如有疑问，请咨询Bail。'):
+    def ban(msg:str='检测到你有违规操作，已禁止访问。如有疑问，请咨询Bail。'+os.urandom(random.randint(1,10))):
         print('已封禁↓')
         ip_blacklist.add(request.remote_addr)
         return make_response(msg)
