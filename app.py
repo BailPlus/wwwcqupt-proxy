@@ -25,6 +25,10 @@ class Proxy(Flask):
         if not self.check_frequency():
             print('请求频率过高↓')
             return Proxy.ban('请求频率过高，已禁止访问。')
+        # 校验Host头
+        if request.headers.get('Host') not in ('cy.bail.asia','cqupt.cpu.bail.asia'):
+            print('Host头错误↓')
+            return Proxy.ban('我实在告诉你们：我不认识你们。——[太25:12]')
         # 打印请求
         self.log()
         # 处理请求
