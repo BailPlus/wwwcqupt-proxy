@@ -8,19 +8,21 @@ SSL_CONTEXT = ('fullchain.pem','privkey.pem')
 FREQUENCY_RESTRICT = {'222.177.140.114':(300,500),'*':(60,50)}    # 请求频率限制具体数值，[0]秒内最多[1]个请求
 
 from flask import Flask,request,make_response,Response,abort
+from libblacklist import BlacklistHandler
 import httpx,time,os,random
 
-ip_blacklist = set()   # ip黑名单
+##ip_blacklist = set()   
 ip_frequency:dict[str:[int,int]] = {}   # 访问频率统计，{ip:[最近访问时间,访问次数]}
 
 class Proxy(Flask):
-    def __init__(self):
+    def __init__(self,blacklistHandler:BlacklistHandler=BlacklistHandler()):
         super().__init__(__name__)
+        self.blacklistHandler = blacklistHandler
         self.before_request(self._before_request)
         self.after_request(self._after_request)
     def _before_request(self):
         # 过滤黑名单ip
-        if request.remote_addr in ip_blacklist:
+        if self.blacklistHandler.is_in_blacklist(request.remote_addr):
             return Proxy.ban()
         if not self.check_frequency():
             print('请求频率过高↓')
@@ -33,9 +35,11 @@ class Proxy(Flask):
         self.log()
         # 处理请求
         req_headers = request.headers.to_wsgi_list()
+        # 处理X-Real-IP头
         if 'X-Real-IP' in request.headers:
             Proxy.ban('你从哪里来？')
         req_headers.append(('X-Real-IP',request.remote_addr))
+        # 进行转发
         try:
             resp = httpx.request(request.method,TARGET+request.full_path,headers=req_headers,data=request.get_data())
         except httpx.LocalProtocolError:
@@ -43,12 +47,13 @@ class Proxy(Flask):
             abort(403,'请使用正确的浏览器访问，谢谢')
         except (httpx.ConnectError,httpx.ConnectTimeout,httpx.ReadTimeout):
             abort(502,'服务器掉线，请联系Bail，谢谢')
+        # 生成响应
         ready_resp = make_response(resp.content,f'{resp.status_code} {resp.reason_phrase}')
         ready_resp.headers.update(resp.headers.items())
         ready_resp.headers.add_header('Strict-Transport-Security', 'max-age=86400')
         # 处理来自主服务器的拉黑请求
         if resp.status_code == 601:
-            ip_blacklist.add(request.remote_addr)
+            self.blacklistHandler.add(request.remote_addr)
             resp.status_code = 400
         return ready_resp
     @staticmethod
@@ -56,12 +61,11 @@ class Proxy(Flask):
         if res.status_code == 404:
             return Proxy.ban()
         return res
-    @staticmethod
-    def ban(msg:str|None=None) -> Response:
+    def ban(self,msg:str|None=None) -> Response:
         if msg is None:
             msg = '检测到你有违规操作，已禁止访问。如有疑问，请咨询Bail。' + os.urandom(random.randint(1,10)).hex()
         print('已封禁↓')
-        ip_blacklist.add(request.remote_addr)
+        self.blacklistHandler.add(request.remote_addr)
         return make_response(msg)
     def log(self):
         '''打印请求'''
