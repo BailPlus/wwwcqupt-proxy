@@ -33,6 +33,8 @@ class Proxy(Flask):
         self.log()
         # 处理请求
         req_headers = request.headers.to_wsgi_list()
+        if 'X-Real-IP' in request.headers:
+            Proxy.ban('你从哪里来？')
         req_headers.append(('X-Real-IP',request.remote_addr))
         try:
             resp = httpx.request(request.method,TARGET+request.full_path,headers=req_headers,data=request.get_data())
