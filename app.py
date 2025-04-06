@@ -23,21 +23,21 @@ class Proxy(Flask):
     def _before_request(self):
         # 过滤黑名单ip
         if self.blacklistHandler.is_in_blacklist(request.remote_addr):
-            return Proxy.ban()
+            return self.ban()
         if not self.check_frequency():
             print('请求频率过高↓')
-            return Proxy.ban('请求频率过高，已禁止访问。')
+            return self.ban('请求频率过高，已禁止访问。')
         # 校验Host头
         if request.headers.get('Host') not in ('cy.bail.asia','cqupt.cpu.bail.asia'):
             print('Host头错误↓')
-            return Proxy.ban('我实在告诉你们：我不认识你们。——[太25:12]')
+            return self.ban('我实在告诉你们：我不认识你们。——[太25:12]')
         # 打印请求
         self.log()
         # 处理请求
         req_headers = request.headers.to_wsgi_list()
         # 处理X-Real-IP头
         if 'X-Real-IP' in request.headers:
-            Proxy.ban('你从哪里来？')
+            self.ban('你从哪里来？')
         req_headers.append(('X-Real-IP',request.remote_addr))
         # 进行转发
         try:
@@ -56,10 +56,9 @@ class Proxy(Flask):
             self.blacklistHandler.add(request.remote_addr)
             resp.status_code = 400
         return ready_resp
-    @staticmethod
-    def _after_request(res:Response):
+    def _after_request(self,res:Response):
         if res.status_code == 404:
-            return Proxy.ban()
+            return self.ban()
         return res
     def ban(self,msg:str|None=None) -> Response:
         if msg is None:
