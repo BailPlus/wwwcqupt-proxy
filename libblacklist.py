@@ -7,7 +7,7 @@ class BlacklistHandler:
     _blacklist:set  # ip黑名单
     conn:sqlite3.Connection  # sqlite3连接
     def __init__(self,db_path:str=BLACKLIST_DB):
-        self.conn = sqlite3.connect(db_path)
+        self.conn = sqlite3.connect(db_path,check_same_thread=False) # XXX: 线程不安全
         self._blacklist = set()
         self.create_table()
         self.load_blacklist()
