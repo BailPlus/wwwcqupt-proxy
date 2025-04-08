@@ -20,16 +20,11 @@ class BlacklistHandler:
         '''加载黑名单'''
         c = self.conn.cursor()
         blacklist = set()
-        for row in c.execute('SELECT ip FROM blacklist'):
-            blacklist.add(row[0])
-        return blacklist
+        return {i[0] for i in c.execute('SELECT ip FROM blacklist').fetchall()}
     def add(self,ip:str):
         '''添加ip到黑名单'''
         c = self.conn.cursor()
-        c.execute('''INSERT INTO blacklist (ip) SELECT ?
-                     WHERE NOT EXISTS (
-                       SELECT 1 FROM blacklist WHERE ip = ?
-                     )''',(ip,ip))
+        c.execute('INSERT OR IGNORE INTO blacklist (ip) VALUES (?)',(ip,))
         self.conn.commit()
     def is_in_blacklist(self,ip:str)->bool:
         '''判断ip是否在黑名单'''
