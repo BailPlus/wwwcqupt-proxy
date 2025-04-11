@@ -46,12 +46,31 @@ class FileReader(StringProvider):
 class CommandReader(StringProvider):
     def __str__(self):
         return subprocess.run('ss | grep https',capture_output=True,shell=True,text=True).stdout
+    
+class IpBlocker(ABC):
+    @abstractmethod
+    def block(self,ip:str):
+        '''添加ip到黑名单'''
+        pass
+
+class BlacklistBlocker(IpBlocker):
+    def __init__(self,blacklist_handler):
+        self._blacklist_handler = blacklist_handler
+    def block(self,ip:str):
+        self._blacklist_handler.add(ip)
+
+class IptablesBlocker(IpBlocker):
+    def block(self,ip:str):
+        subprocess.run(['iptables', '-A', 'INPUT', '-s', ip, '-j', 'DROP'])
 
 def main():
     arg_reader = ArgReader()
     string_provider:StringProvider
     ip_extracter = IpExtracter()
-    blacklist_handler = BlacklistHandler()
+    blockers:list[IpBlocker] = [
+        BlacklistBlocker(BlacklistHandler()),
+        IptablesBlocker()
+    ]
 
     files = arg_reader.get_files()
     if files:
@@ -60,7 +79,9 @@ def main():
         string_provider = CommandReader()
     ips = ip_extracter.extract_ip(str(string_provider))
     for ip in ips:
-        blacklist_handler.add(ip)
+        for blocker in blockers:
+            blocker.block(ip)
+        print(f'Blocked IP: {ip}')
 
 if __name__ == '__main__':
     main()
