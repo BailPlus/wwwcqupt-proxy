@@ -45,7 +45,7 @@ class FileReader(StringProvider):
 
 class CommandReader(StringProvider):
     def __str__(self):
-        return subprocess.run('ss | grep https',capture_output=True,shell=True,text=True).stdout
+        return subprocess.run('ss | grep https',capture_output=True,shell=True,text=True).stdout.strip()
     
 class IpBlocker(ABC):
     @abstractmethod

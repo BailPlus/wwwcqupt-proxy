@@ -7,7 +7,7 @@ TRAFFIC_LOG_FILE = 'traffic.log'
 SSL_CONTEXT = ('fullchain.pem','privkey.pem')
 FREQUENCY_RESTRICT = {'222.177.140.114':(300,500),'*':(60,50)}    # 请求频率限制具体数值，[0]秒内最多[1]个请求
 
-from flask import Flask,request,make_response,Response,abort
+from flask import Flask,request,make_response,Response,abort,send_file
 from libblacklist import BlacklistHandler
 import httpx,time,os,random
 
@@ -65,7 +65,7 @@ class Proxy(Flask):
             msg = '检测到你有违规操作，已禁止访问。如有疑问，请咨询Bail。' + os.urandom(random.randint(1,10)).hex()
         print('已封禁↓')
         self.blacklistHandler.add(request.remote_addr)
-        return make_response(msg)
+        return self.send_zip_boom()#make_response(msg)
     def log(self):
         '''打印请求'''
         with open(TRAFFIC_LOG_FILE, 'ab') as requests_log_file:
@@ -89,6 +89,13 @@ class Proxy(Flask):
             now_frequency = [time.time(),1]
         ip_frequency[request.remote_addr] = now_frequency
         return True
+    @staticmethod
+    def send_zip_boom():
+        resp = send_file('5G.gz')
+        resp.headers['Content-Encoding'] = 'gzip'
+        resp.headers['Content-Type'] = 'text/html'
+        del resp.headers['Content-Disposition']
+        return resp
 
 if __name__ == '__main__':
     Proxy().run('0.0.0.0',443,ssl_context=SSL_CONTEXT)
