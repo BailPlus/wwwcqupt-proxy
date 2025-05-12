@@ -12,7 +12,7 @@ from libblacklist import BlacklistHandler
 import httpx,time,os,random
 
 ##ip_blacklist = set()   
-ip_frequency:dict[str:[int,int]] = {}   # 访问频率统计，{ip:[最近访问时间,访问次数]}
+ip_frequency:dict[str,list[int]] = {}   # 访问频率统计，{ip:[最近访问时间,访问次数]}
 
 class Proxy(Flask):
     def __init__(self,blacklistHandler:BlacklistHandler=BlacklistHandler()):
@@ -41,7 +41,7 @@ class Proxy(Flask):
         req_headers.append(('X-Real-IP',request.remote_addr))
         # 进行转发
         try:
-            resp = httpx.request(request.method,TARGET+request.full_path,headers=req_headers,data=request.get_data())
+            resp = httpx.request(request.method,TARGET+request.full_path,headers=req_headers,data=request.get_data(),timeout=(1,60,30,10))
         except httpx.LocalProtocolError:
             print('浏览器不正确↓')
             abort(403,'请使用正确的浏览器访问，谢谢')
