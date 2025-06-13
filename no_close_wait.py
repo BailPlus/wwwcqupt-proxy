@@ -16,7 +16,8 @@ class ArgReader:
         return self._argv[1:]
 
 class IpExtracter:
-    def extract_ip(self,s:str)->list[str]:
+    @staticmethod
+    def extract_ip(s: str) -> set[str]:
         '''从文本中提取恶意ip
     s(str):命令原始输出'''
         evilIps = set()

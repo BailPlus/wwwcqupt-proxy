@@ -6,10 +6,11 @@ TARGET = 'http://localhost:5000'
 TRAFFIC_LOG_FILE = 'traffic.log'
 SSL_CONTEXT = ('fullchain.pem','privkey.pem')
 FREQUENCY_RESTRICT = {'222.177.140.114':(300,500),'*':(60,50)}    # 请求频率限制具体数值，[0]秒内最多[1]个请求
+VALID_HOSTS = ['cy.bail.asia', 'cqupt.cpu.bail.asia']
 
-from flask import Flask,request,make_response,Response,abort,send_file
+from flask import Flask,request,make_response,Response,abort,send_file, render_template
 from libblacklist import BlacklistHandler
-import httpx,time,os,random
+import httpx,time,random, pyotp, config
 
 ##ip_blacklist = set()   
 ip_frequency:dict[str,list[int]] = {}   # 访问频率统计，{ip:[最近访问时间,访问次数]}
@@ -28,10 +29,10 @@ class Proxy(Flask):
             print('请求频率过高↓')
             return self.ban('请求频率过高，已禁止访问。')
         # 校验Host头
-        if request.headers.get('Host') not in ('cy.bail.asia','cqupt.cpu.bail.asia'):
+        if request.headers.get('Host') not in VALID_HOSTS:
             print('Host头错误↓')
             return self.ban('我实在告诉你们：我不认识你们。——[太25:12]')
-        # 打印请求
+        # 记录日志
         self.log()
         # 处理请求
         req_headers = request.headers.to_wsgi_list()
@@ -60,12 +61,23 @@ class Proxy(Flask):
         if res.status_code == 404:
             return self.ban()
         return res
-    def ban(self,msg:str|None=None) -> Response:
+    def ban(self,msg:str|None=None):
+        if 'Unban-Code' in request.headers:
+            self.unban(request.headers['Unban-Code'])
+            return '已解封'
         if msg is None:
-            msg = '检测到你有违规操作，已禁止访问。如有疑问，请咨询Bail。' + os.urandom(random.randint(1,10)).hex()
+            msg = '检测到你有违规操作，已禁止访问。如有疑问，请咨询Bail。' + ' '*random.randint(1,10)
         print('已封禁↓')
         self.blacklistHandler.add(request.remote_addr)
-        return self.send_zip_boom()#make_response(msg)
+        ##return self.send_zip_boom()
+        return make_response(render_template('banned.html',msg=msg))
+    def unban(self, unban_code:str):
+        '''取消封禁'''
+        # 验证pyotp
+        if not pyotp.TOTP(config.UNBAN_CODE_SECRET).verify(unban_code):
+            print('解封失败↓')
+            abort(403,'解封码错误')
+        self.blacklistHandler.remove_ip(request.remote_addr)
     def log(self):
         '''打印请求'''
         with open(TRAFFIC_LOG_FILE, 'ab') as requests_log_file:
