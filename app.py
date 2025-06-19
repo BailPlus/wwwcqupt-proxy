@@ -54,8 +54,7 @@ class Proxy(Flask):
         ready_resp.headers.add_header('Strict-Transport-Security', 'max-age=86400')
         # 处理来自主服务器的拉黑请求
         if resp.status_code == 601:
-            self.blacklistHandler.add(request.remote_addr)
-            resp.status_code = 400
+            return self.ban(resp.text)
         return ready_resp
     def _after_request(self,res:Response):
         if res.status_code == 404:
