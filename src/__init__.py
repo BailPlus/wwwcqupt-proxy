@@ -40,6 +40,9 @@ class Site:
         assert (ip := request.remote_addr)
 
         if self.blacklist_handler is not None and self.blocker is not None:
+            if 'Unban-Code' in request.headers:
+                unban_code = request.headers['Unban-Code']
+                self.blocker.unban(unban_code)
             if self.blacklist_handler.is_in_blacklist(ip):
                 return self.blocker.ban(ip)
         if self.freq_checker is not None:
@@ -87,6 +90,6 @@ class Proxy:
     def proxy(self, request: Request) -> Response:
         assert request.remote_addr
         if request.host not in self.sites:
-            print('Host头错误↓')
+            print(f'Host头错误: {request.host}↓')
             return self.blocker.ban(request.remote_addr, '我实在告诉你们：我不认识你们。——[太25:12]')
         return self.sites[request.host].handle(request)

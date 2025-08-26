@@ -7,8 +7,7 @@ app = Flask(__name__, template_folder='views')
 proxy = Proxy(
     global_config=global_config,
 )
-all(proxy.add_site(site) for site in sites)
-port = 443 if global_config.ssl_context is not None else 80
+any(proxy.add_site(site) for site in sites)
 
 @app.before_request
 def handle():

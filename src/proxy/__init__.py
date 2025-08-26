@@ -26,7 +26,7 @@ class ProxyHandler(IProxyHandler):
         try:
             resp = self.client.request(
                 method=request.method,
-                url=self.config.target_url+request.full_path,
+                url=self.config.target_url+request.environ['RAW_URI'],
                 headers=req_headers,
                 data=request.get_data(), # type: ignore
                 timeout=(1,60,30,10)
@@ -37,7 +37,12 @@ class ProxyHandler(IProxyHandler):
             flask.abort(503, '服务器掉线，请联系Bail，谢谢')
         ready_resp = flask.make_response(resp.content,f'{resp.status_code} {resp.reason_phrase}')
         ready_resp.headers.update(resp.headers.items())
-        ready_resp.headers.add_header('Strict-Transport-Security', 'max-age=86400')
+        # ready_resp.headers.add_header('Strict-Transport-Security', 'max-age=86400')
+        del ready_resp.headers['Content-Encoding']
+        del ready_resp.headers['Transfer-Encoding']
+        del ready_resp.headers['Set-Cookie']
+        for cookie in resp.headers.get_list('Set-Cookie'):
+            ready_resp.headers.add('Set-Cookie', cookie)
         # 处理来自主服务器的拉黑请求
         if resp.status_code == 601:
             raise BanThisIp('你在搞什么？')
