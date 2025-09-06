@@ -2,18 +2,15 @@ from typing import override
 from .interface import IProxyHandler
 from ..config import SiteConfig
 from ..errors import BanThisIp
-from httpx import Client
 import flask, httpx
 
 
 class ProxyHandler(IProxyHandler):
     """处理转发"""
     config: SiteConfig
-    client: Client
 
-    def __init__(self, config: SiteConfig, httpx_client: Client):
+    def __init__(self, config: SiteConfig):
         self.config = config
-        self.client = httpx_client
 
     @override
     def proxy(self, request: flask.Request) -> flask.Response:
@@ -24,7 +21,7 @@ class ProxyHandler(IProxyHandler):
         req_headers.append(('X-Real-IP',request.remote_addr)) # type: ignore
         # 进行转发
         try:
-            resp = self.client.request(
+            resp = httpx.request(
                 method=request.method,
                 url=self.config.target_url+request.environ['RAW_URI'],
                 headers=req_headers,

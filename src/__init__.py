@@ -84,7 +84,7 @@ class Proxy:
             blocker=Blocker(self.gconfig, blacklist_handler),
             freq_checker=FreqChecker(site_config) if site_config.freq_restrict is not None else None,
             logger=Logger(site_config) if site_config.log_file is not None else None,
-            proxy_handler=ProxyHandler(site_config, httpx.Client())
+            proxy_handler=ProxyHandler(site_config)
         )
     
     def proxy(self, request: Request) -> Response:
