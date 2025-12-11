@@ -53,7 +53,7 @@ class FreqChecker(IFreqChecker):
 
     @override
     def check(self, ip: str):
-        assert self.config.freq_restrict
+        assert self.config.freq_restrict is not None
         restrict = self.config.freq_restrict[ip]
         now = self.now_frequency.get(ip, FreqArray(restrict.window_size))
         now.freq += 1
