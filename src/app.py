@@ -1,6 +1,6 @@
 from flask import Flask, request
 from . import Proxy
-from .configs import global_config, sites
+from data.configs import global_config, sites
 
 
 app = Flask(__name__, template_folder='views')

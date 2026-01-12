@@ -72,4 +72,6 @@ class GlobalConfig:
     port: int  # 监听端口
     blacklist_db: str   # 黑名单数据库路径
     unban_code_secret: str  # 解封码密钥
+    workers: int = 1    # 工作进程数
     ssl_context: Optional[tuple[str, str]] = None   # ssl证书
+    timeout: int|None = None    # 请求超时时间
